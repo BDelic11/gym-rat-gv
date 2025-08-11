@@ -1,0 +1,127 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile  Profile?
+  workouts Workout[]
+  meals    Meal[]
+
+  @@map("users")
+}
+
+model Profile {
+  id       String @id @default(cuid())
+  userId   String @unique
+  age      Int?
+  weight   Float? // kg
+  height   Float? // cm
+  gender   String? // "male" | "female" | "other"
+  goal     String? // "lose_weight" | "gain_weight" | "maintain" | "build_muscle"
+  activityLevel String? // "sedentary" | "light" | "moderate" | "active" | "very_active"
+  tdee     Float? // Total Daily Energy Expenditure
+  targetCalories Int?
+  targetProtein  Int? // grams
+  targetCarbs    Int? // grams
+  targetFat      Int? // grams
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Workout {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  date      DateTime @default(now())
+  duration  Int? // minutes
+  notes     String?
+  caloriesBurned Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises Exercise[]
+
+  @@map("workouts")
+}
+
+model Exercise {
+  id        String @id @default(cuid())
+  workoutId String
+  name      String
+  category  String? // "strength" | "cardio" | "flexibility" | "other"
+  notes     String?
+  order     Int    @default(0)
+
+  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  sets    Set[]
+
+  @@map("exercises")
+}
+
+model Set {
+  id         String @id @default(cuid())
+  exerciseId String
+  reps       Int?
+  weight     Float? // kg
+  duration   Int? // seconds for time-based exercises
+  distance   Float? // km for cardio
+  restTime   Int? // seconds
+  order      Int    @default(0)
+  notes      String?
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@map("sets")
+}
+
+model Meal {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // "breakfast" | "lunch" | "dinner" | "snack" | "mid_meal"
+  date      DateTime @default(now())
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items MealItem[]
+
+  @@map("meals")
+}
+
+model MealItem {
+  id       String @id @default(cuid())
+  mealId   String
+  name     String
+  quantity Float  // amount
+  unit     String // "g" | "ml" | "cup" | "piece" | "tbsp" | "tsp"
+  calories Int
+  protein  Float  // grams
+  carbs    Float  // grams
+  fat      Float  // grams
+  fiber    Float? // grams
+  sugar    Float? // grams
+  sodium   Float? // mg
+  order    Int    @default(0)
+
+  meal Meal @relation(fields: [mealId], references: [id], onDelete: Cascade)
+
+  @@map("meal_items")
+}
