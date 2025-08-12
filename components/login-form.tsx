@@ -20,10 +20,13 @@ export function LoginForm({ className, onValidSubmit, ...props }: Props) {
     Partial<Record<keyof LoginFormValues, string>>
   >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrors({});
+    setFormError(null);
+
     setIsSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
@@ -44,16 +47,20 @@ export function LoginForm({ className, onValidSubmit, ...props }: Props) {
       setIsSubmitting(false);
       return;
     }
-
-    if (onValidSubmit) {
-      await onValidSubmit(parsed.data);
-    } else {
-      (props as any)?.action?.(formData);
+    try {
+      if (onValidSubmit) {
+        await onValidSubmit(parsed.data);
+      } else if ((props as any)?.action) {
+        // IMPORTANT: await the server action and catch errors
+        await (props as any).action(formData);
+      }
+      // if server action redirects on success, code after this won’t run
+    } catch (e: any) {
+      setFormError(e?.message ?? "Login failed");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
   }
-
   return (
     <form
       className={cn("flex flex-col gap-6", className)}
@@ -110,6 +117,11 @@ export function LoginForm({ className, onValidSubmit, ...props }: Props) {
           />
           {errors.password && (
             <p className="text-sm text-red-500">{errors.password}</p>
+          )}
+          {formError && (
+            <p className="text-sm text-red-500" role="alert">
+              {formError}
+            </p>
           )}
         </div>
 

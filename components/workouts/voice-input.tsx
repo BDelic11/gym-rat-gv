@@ -25,7 +25,7 @@ export function VoiceInput({
   const [isProcessing, setIsProcessing] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const audioProcessor = useRef(AudioProcessor.getInstance());
-  const recordingTimer = useRef<NodeJS.Timeout>();
+  const recordingTimer = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
   const startRecording = useCallback(async () => {

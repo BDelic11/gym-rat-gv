@@ -5,7 +5,7 @@ import { login } from "@/data-access/actions/auth";
 
 export default function LoginPage() {
   return (
-    <div className="grid min-h-svh lg:grid-cols-2 bg-background-grey">
+    <div className="grid min-h-svh lg:grid-cols-2 bg-transparent">
       <div className="flex flex-col gap-4 p-6 md:p-10">
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
@@ -13,12 +13,11 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-      <div className="relative hidden bg-muted lg:block">
+      <div className="relative hidden my-auto lg:block">
         <Image
           src={logo}
           alt="Login Background"
-          fill
-          className="object-cover bg-background-grey md:pr-20"
+          className="object-cover w-auto bg-transparent md:pr-20 "
           priority
         />
       </div>
