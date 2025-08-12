@@ -1,3 +1,4 @@
+"server-only";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 

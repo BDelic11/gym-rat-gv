@@ -3,14 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:seed": "prisma db seed",
-    "setup": "npm run prisma:generate && npm run prisma:push && npm run prisma:seed"
+    "setup": "npm run prisma:generate && npm run prisma:push && npm run prisma:seed",
+    "postinstall": "prisma generate",
+    "build": "next build",
+    "vercel-build": "prisma generate && next build"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
