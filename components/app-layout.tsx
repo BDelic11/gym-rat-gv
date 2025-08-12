@@ -1,7 +1,6 @@
 "use client";
 
 import type React from "react";
-
 import { AppSidebar } from "./app-sidebar";
 import { MobileNav } from "./mobile-nav";
 import Image from "next/image";
@@ -13,25 +12,40 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   return (
-    <div className="flex h-screen bg-background">
+    // Lock the whole app to the viewport so only <main> can scroll
+    <div className="fixed inset-0 flex bg-background">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex">
         <AppSidebar />
       </aside>
 
-      {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Mobile Header */}
-        <header className="flex h-16 justify-between items-center gap-4 border-b bg-background px-4 md:hidden">
+      {/* Main column */}
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        {/* Mobile Header (fixed, stays on top) */}
+        <header
+          className="
+            fixed inset-x-0 top-0 z-40 md:hidden
+            flex h-16 items-center justify-between gap-4
+            border-b bg-background/95 backdrop-blur px-4
+          "
+          style={{ paddingTop: "env(safe-area-inset-top)" }}
+        >
           <MobileNav />
           <div className="flex items-center gap-2">
-            {/* <span className="text-lg font-semibold">GYM AI</span> */}
-            <Image src={logo} alt="GYM AI Logo" className="w-32 " />
+            <Image src={logo} alt="GYM AI Logo" className="w-32 h-auto" />
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        {/* Scrollable content area */}
+        <main
+          className="
+            flex-1 overflow-y-auto
+            pt-16 md:pt-0
+          "
+          style={{ paddingTop: "calc(env(safe-area-inset-top) + 4rem)" }}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

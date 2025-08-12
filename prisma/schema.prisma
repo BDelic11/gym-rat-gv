@@ -5,13 +5,26 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL") 
-  directUrl = env("DIRECT_URL")  
 }
 enum MealType {
   BREAKFAST
   LUNCH
   DINNER
   SNACK
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+enum ActivityLevel {
+  sedentary
+  lightly_active
+  moderate
+  active
+  very_active
 }
 
 
@@ -60,19 +73,19 @@ model PasswordResetToken {
 }
 
 model Profile {
-  id            String  @id @default(cuid())
-  userId        String  @unique
-  age           Int?
-  weight        Float?
-  height        Float?
-  gender        String?
-  goal          String?
-  activityLevel String?
-  tdee          Float?
-  targetCalories Int?
-  targetProtein  Int?
-  targetCarbs    Int?
-  targetFat      Int?
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  age             Int?
+  weight          Float?
+  height          Float?
+  gender          Gender?        
+  activityLevel   ActivityLevel? 
+  goal            String?
+  tdee            Float?
+  targetCalories  Int?
+  targetProtein   Int?
+  targetCarbs     Int?
+  targetFat       Int?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

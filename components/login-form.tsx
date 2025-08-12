@@ -67,11 +67,11 @@ export function LoginForm({ className, onValidSubmit, ...props }: Props) {
       onSubmit={handleSubmit}
       {...props}
     >
-      <div className="flex flex-col items-start gap-2 text-center">
+      <div className="flex flex-col items-center gap-2 text-center">
         <Image
           src={logo}
           alt="Login Background"
-          className="object-cover bg-background-grey w-32 h-32 md:hidden"
+          className="object-cover bg-transparent w-40 h-40 md:hidden"
           priority
         />
         <h1 className="text-2xl font-bold">Login to your gym account</h1>

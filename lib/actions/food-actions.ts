@@ -354,9 +354,9 @@ export async function addTemplateToToday(templateId: string) {
 
     revalidatePath("/food");
     revalidatePath("/");
-    redirect("/food");
+    // redirect("/food");
 
-    // return { success: true, meal };
+    return { success: true, meal };
   } catch (e) {
     console.error("addTemplateToToday error", e);
     return { success: false, error: "Failed to add template" };

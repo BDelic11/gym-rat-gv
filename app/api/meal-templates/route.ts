@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       { status: 401 }
     );
 
-  const { meal, name } = await req.json(); // { meal: ParsedMeal, name?: string }
+  const { meal, name } = await req.json();
   const res = await saveMealTemplate(meal, name);
   return NextResponse.json(res, { status: res.success ? 200 : 400 });
 }

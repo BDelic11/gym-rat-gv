@@ -57,20 +57,21 @@ export function MealSection({
                 variant="outline"
                 size="sm"
                 onClick={() => onBrowseTemplates(type)}
-                className="gap-2"
+                className="gap-2 rounded-full md:rounded-md"
               >
                 <List className="h-4 w-4" />
-                Templates
+
+                <span className="hidden md:block"> Templates</span>
               </Button>
             )}
             <Button
               variant="outline"
               size="sm"
               onClick={() => onAddFood(type)}
-              className="gap-2"
+              className="gap-2 rounded-full md:rounded-md"
             >
               <Plus className="h-4 w-4" />
-              Add Food
+              <span className="hidden md:block">Add Food</span>
             </Button>
           </div>
         </div>

@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input"; // ⬅ add
 import { Loader2, Save, BookmarkPlus, X } from "lucide-react"; // ⬅ add
 import { MealType } from "@prisma/client";
+import { useRouter } from "next/navigation"; // ⬅ add
 
 interface ParsedMeal {
   type: MealType;
@@ -50,7 +51,8 @@ export function FoodModal({
 }: FoodModalProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingTpl, setIsSavingTpl] = useState(false); // ⬅
-  const [tplName, setTplName] = useState<string>(""); // ⬅
+  const [tplName, setTplName] = useState<string>("");
+  const router = useRouter();
 
   const handleSave = async () => {
     if (!mealData) return;
@@ -70,6 +72,7 @@ export function FoodModal({
     setIsSavingTpl(true);
     try {
       await onSaveTemplate(mealData, tplName || undefined);
+      router.push("/food");
       onClose();
     } catch (e) {
       console.error(e);

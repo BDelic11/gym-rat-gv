@@ -1,3 +1,4 @@
+"server-only";
 import { NextResponse } from "next/server";
 import { removeMealItem } from "@/lib/actions/food-actions";
 

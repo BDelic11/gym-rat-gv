@@ -165,7 +165,7 @@ export function VoiceInput({
               }}
               placeholder={placeholder}
               disabled={disabled || isProcessing || isRecording}
-              className="min-h-[40px] max-h-32 resize-non rounded-full md:rounded-md"
+              className="min-h-[44px] text-md max-h-32 resize-non rounded-full md:rounded-md"
               rows={1}
             />
           </div>

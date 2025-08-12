@@ -87,5 +87,12 @@
   }
   body {
     @apply bg-background text-foreground;
+    overflow: hidden;
   }
+}
+
+html,
+body,
+#__next {
+  height: 100%;
 }

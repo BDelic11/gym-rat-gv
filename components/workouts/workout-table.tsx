@@ -66,10 +66,26 @@ export function WorkoutTable({ workouts }: WorkoutTableProps) {
   if (workouts.length === 0) {
     return (
       <Card>
-        <CardContent className="p-6 text-center">
+        <CardContent className="p-6 text-center space-y-3">
           <p className="text-muted-foreground">
             No workouts logged yet. Start by adding your first workout below!
           </p>
+
+          <div className="mx-auto max-w-md text-left rounded-lg border bg-muted/40 p-3">
+            <div className="mb-1">
+              <Badge variant="secondary">TIP</Badge>
+            </div>
+            <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+              <li>
+                The more clearly you describe what you did (sets, reps, weight,
+                duration…), the more accurate your log will be.
+              </li>
+              <li>
+                Use the <span className="font-medium">voice</span> input for
+                faster entry.
+              </li>
+            </ul>
+          </div>
         </CardContent>
       </Card>
     );

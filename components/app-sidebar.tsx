@@ -1,12 +1,18 @@
 "use client";
 
-import { Home, Dumbbell, UtensilsCrossed, Settings, User } from "lucide-react";
+import {
+  Home,
+  Dumbbell,
+  UtensilsCrossed,
+  Settings,
+  User,
+  LightbulbIcon as Star,
+} from "lucide-react";
 import Link from "next/link";
 import { redirect, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import logo from "@/public/logos/gym-rat-transparent-logo.svg";
-import { getCurrentUser } from "@/lib/auth";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
 const navigation = [
@@ -24,6 +30,11 @@ const navigation = [
     name: "Food",
     href: "/food",
     icon: UtensilsCrossed,
+  },
+  {
+    name: "Inspire",
+    href: "/inspire",
+    icon: Star,
   },
   {
     name: "Profile",
@@ -77,7 +88,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
               key={item.name}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-md font-medium transition-colors",
                 isActive
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"

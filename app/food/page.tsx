@@ -240,8 +240,8 @@ export default function FoodPage() {
 
   return (
     <AppLayout>
-      <div className="p-6 pb-32">
-        <div className="mb-6">
+      <div className="px-1 py-6 md:px-6 pb-32">
+        <div className="px-2 md:px-0 mb-6">
           <PageTitle>Food</PageTitle>
           <p className="text-muted-foreground">
             Track your meals and nutrition.
@@ -305,7 +305,7 @@ export default function FoodPage() {
         placeholder={
           currentMealType
             ? `Describe your ${MEAL_LABEL[currentMealType]}...`
-            : "Click 'Add Food' on a meal section first, then describe what you ate..."
+            : "Click 'Add Food'and describe..."
         }
         disabled={!currentMealType}
       />

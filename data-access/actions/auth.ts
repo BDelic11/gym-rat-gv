@@ -28,7 +28,7 @@ export async function login(formData: FormData) {
   }
 
   await createSession(user.id);
-  redirect("/"); // change to your landing page
+  redirect("/");
 }
 
 export async function register(formData: FormData) {
@@ -38,15 +38,12 @@ export async function register(formData: FormData) {
     password: formData.get("password"),
     confirm: formData.get("confirm"),
   });
-  if (!parsed.success) {
-    throw new Error("Invalid registration data");
-  }
+  if (!parsed.success) throw new Error("Invalid registration data");
+
   const { name, email, password } = parsed.data;
 
   const exists = await prisma.user.findUnique({ where: { email } });
-  if (exists) {
-    throw new Error("Email already in use");
-  }
+  if (exists) throw new Error("Email already in use");
 
   const passwordHash = await bcrypt.hash(password, 12);
 
@@ -55,14 +52,12 @@ export async function register(formData: FormData) {
       email,
       name,
       passwordHash,
-      profile: {
-        create: {}, // optional: create empty profile immediately
-      },
+      profile: { create: {} },
     },
   });
 
   await createSession(user.id);
-  redirect("/");
+  redirect("/profile-register");
 }
 
 export async function logout() {

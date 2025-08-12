@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/app-layout";
 import PageTitle from "@/components/page-title";
 import { redirect } from "next/navigation";
 import { getUserProfile } from "@/data-access/data/get-user-profile";
-import { ProfileModal } from "../../components/profile/profile-modal";
+import { ProfileModal } from "@/components/profile/profile-modal";
 import { getWeightLogs } from "@/data-access/data/get-weight-logs";
 import { WeightChart } from "@/components/weight-chart";
 import { AddWeightEntry } from "@/components/profile/add-weight-entry";
@@ -11,9 +11,7 @@ export default async function ProfilePage() {
   const data = await getUserProfile();
   const weightLogs = await getWeightLogs();
 
-  if (!data?.user) {
-    redirect("/login");
-  }
+  if (!data?.user) redirect("/login");
 
   const { profile } = data;
 
@@ -29,6 +27,7 @@ export default async function ProfilePage() {
           </div>
           <ProfileModal existing={profile} />
         </div>
+
         <div className="rounded-lg border bg-card p-6">
           <h3 className="font-semibold mb-4">Personal Information</h3>
           <div className="grid gap-4 md:grid-cols-2">
@@ -50,6 +49,22 @@ export default async function ProfilePage() {
                 {profile?.height ? `${profile.height} cm` : "Not set"}
               </p>
             </div>
+
+            <div>
+              <label className="text-sm font-medium">Gender</label>
+              <p className="text-lg">
+                {profile?.gender ? formatGender(profile.gender) : "Not set"}
+              </p>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Activity Level</label>
+              <p className="text-lg">
+                {profile?.activityLevel
+                  ? formatActivity(profile.activityLevel)
+                  : "Not set"}
+              </p>
+            </div>
+
             <div>
               <label className="text-sm font-medium">Goal</label>
               <p className="text-lg">
@@ -58,6 +73,7 @@ export default async function ProfilePage() {
             </div>
           </div>
         </div>
+
         <div className="mt-6 md:mx-10 flex items-center justify-between">
           <h3 className="font-semibold">Weight History</h3>
           <AddWeightEntry />
@@ -76,4 +92,24 @@ function formatGoal(goal: string) {
     build_muscle: "Build Muscle",
   };
   return mapping[goal] || goal;
+}
+
+function formatGender(g: string) {
+  const m: Record<string, string> = {
+    male: "Male",
+    female: "Female",
+    other: "Other",
+  };
+  return m[g.toLowerCase()] ?? g;
+}
+
+function formatActivity(a: string) {
+  const m: Record<string, string> = {
+    sedentary: "Sedentary",
+    lightly_active: "Lightly Active",
+    moderate: "Moderately Active",
+    active: "Active",
+    very_active: "Very Active",
+  };
+  return m[a.toLowerCase()] ?? a;
 }

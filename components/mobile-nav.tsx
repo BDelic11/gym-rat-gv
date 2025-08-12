@@ -15,9 +15,9 @@ export function MobileNav() {
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden outline outline-1 outline-accent"
+          className="text-accent [&_svg]:h-6 [&_svg]:w-6 [&_svg]:[stroke-width:2] md:hidden"
         >
-          <Menu className="h-10 w-10" />
+          <Menu />
           <span className="sr-only">Toggle navigation menu</span>
         </Button>
       </SheetTrigger>

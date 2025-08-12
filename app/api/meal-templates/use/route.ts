@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await addTemplateToToday(templateId); // server action you already have
+    const result = await addTemplateToToday(templateId);
     return NextResponse.json(result, { status: result.success ? 200 : 400 });
   } catch (err: any) {
     console.error("use template error:", err);
