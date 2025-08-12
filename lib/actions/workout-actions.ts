@@ -1,224 +1,197 @@
-"use server"
+"use server";
 
-import { prisma } from "@/lib/prisma"
-import { openai, workoutSchema } from "@/lib/openai"
-import { revalidatePath } from "next/cache"
-import { z } from "zod"
+import { prisma } from "@/lib/prisma";
+import { openai, workoutSchema } from "@/lib/openai";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { getCurrentUser } from "@/lib/auth"; // <-- use your real auth helper
 
-const DEMO_USER_ID = "demo-user-id"
-
-// Zod schema for workout validation
 const WorkoutValidationSchema = z.object({
   name: z.string().min(1, "Workout name is required"),
-  duration: z.number().optional(),
+  duration: z.number().nullable().optional(),
   exercises: z.array(
     z.object({
       name: z.string().min(1, "Exercise name is required"),
       category: z.enum(["strength", "cardio", "flexibility", "other"]),
       sets: z.array(
         z.object({
-          reps: z.number().optional(),
-          weight: z.number().optional(),
-          duration: z.number().optional(),
-          distance: z.number().optional(),
-          restTime: z.number().optional(),
-        }),
+          reps: z.number().nullable().optional(),
+          weight: z.number().nullable().optional(),
+          duration: z.number().nullable().optional(),
+          distance: z.number().nullable().optional(),
+          restTime: z.number().nullable().optional(),
+        })
       ),
-    }),
+    })
   ),
-})
+});
 
+// ----------------------- TRANSCRIBE (unchanged auth-wise) -----------------------
 export async function transcribeAudio(audioBase64: string) {
   try {
-    // Validate input
-    if (!audioBase64) {
-      return { success: false, error: "No audio data provided" }
-    }
+    if (!audioBase64)
+      return { success: false, error: "No audio data provided" };
 
-    // Remove data URL prefix if present
-    const base64Audio = audioBase64.replace(/^data:audio\/[^;]+;base64,/, "")
-
-    // Validate base64 format
+    const base64Audio = audioBase64.replace(/^data:audio\/[^;]+;base64,/, "");
     if (!base64Audio || base64Audio.length < 100) {
-      return { success: false, error: "Invalid audio data" }
+      return { success: false, error: "Invalid audio data" };
     }
 
-    // Convert base64 to buffer
-    let audioBuffer: Buffer
+    let audioBuffer: Buffer;
     try {
-      audioBuffer = Buffer.from(base64Audio, "base64")
-    } catch (error) {
-      return { success: false, error: "Failed to decode audio data" }
+      audioBuffer = Buffer.from(base64Audio, "base64");
+    } catch {
+      return { success: false, error: "Failed to decode audio data" };
     }
+    if (audioBuffer.length === 0)
+      return { success: false, error: "Empty audio data" };
+    if (audioBuffer.length > 25 * 1024 * 1024)
+      return { success: false, error: "Audio file too large (max 25MB)" };
 
-    // Validate buffer size
-    if (audioBuffer.length === 0) {
-      return { success: false, error: "Empty audio data" }
-    }
-
-    if (audioBuffer.length > 25 * 1024 * 1024) {
-      // 25MB limit
-      return { success: false, error: "Audio file too large (max 25MB)" }
-    }
-
-    // Determine file type and create appropriate File object
-    let mimeType = "audio/webm"
-    let fileName = "audio.webm"
-
-    // Try to detect format from the original data URL
-    const dataUrlMatch = audioBase64.match(/^data:audio\/([^;]+);base64,/)
+    let mimeType = "audio/webm";
+    let fileName = "audio.webm";
+    const dataUrlMatch = audioBase64.match(/^data:audio\/([^;]+);base64,/);
     if (dataUrlMatch) {
-      const detectedType = dataUrlMatch[1]
-      mimeType = `audio/${detectedType}`
-      fileName = `audio.${detectedType === "mpeg" ? "mp3" : detectedType}`
+      const detectedType = dataUrlMatch[1];
+      mimeType = `audio/${detectedType}`;
+      fileName = `audio.${detectedType === "mpeg" ? "mp3" : detectedType}`;
     }
 
-    const audioFile = new File([audioBuffer], fileName, { type: mimeType })
+    const audioFile = new File([audioBuffer], fileName, { type: mimeType });
 
-    // Transcribe with retry logic
-    let lastError: Error | null = null
-    const maxRetries = 2
+    let lastError: Error | null = null;
+    const maxRetries = 2;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const transcription = await openai.audio.transcriptions.create({
           file: audioFile,
           model: "whisper-1",
-          language: "en", // Can be made configurable
+          language: "hr",
           response_format: "text",
-          temperature: 0.2, // Lower temperature for more consistent results
-        })
+          temperature: 0.2,
+        });
 
-        // Validate transcription result
-        if (!transcription || typeof transcription !== "string" || transcription.trim().length === 0) {
-          return { success: false, error: "No speech detected in audio" }
+        if (
+          !transcription ||
+          typeof transcription !== "string" ||
+          transcription.trim().length === 0
+        ) {
+          return { success: false, error: "No speech detected in audio" };
         }
-
-        return { success: true, text: transcription.trim() }
-      } catch (error) {
-        lastError = error as Error
-        console.error(`Transcription attempt ${attempt + 1} failed:`, error)
-
-        // Don't retry on certain errors
-        if (error instanceof Error) {
-          if (
-            error.message.includes("Invalid file format") ||
+        return { success: true, text: transcription.trim() };
+      } catch (error: any) {
+        lastError = error;
+        if (
+          typeof error?.message === "string" &&
+          (error.message.includes("Invalid file format") ||
             error.message.includes("File too large") ||
-            error.message.includes("quota")
-          ) {
-            break
-          }
+            error.message.includes("quota"))
+        ) {
+          break;
         }
-
-        // Wait before retry (exponential backoff)
-        if (attempt < maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000))
-        }
+        if (attempt < maxRetries)
+          await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 1000));
       }
     }
 
     return {
       success: false,
-      error: lastError?.message || "Failed to transcribe audio after multiple attempts",
-    }
-  } catch (error) {
-    console.error("Transcription error:", error)
+      error:
+        lastError?.message ||
+        "Failed to transcribe audio after multiple attempts",
+    };
+  } catch (error: any) {
+    console.error("Transcription error:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to transcribe audio",
-    }
+      error: error?.message ?? "Failed to transcribe audio",
+    };
   }
 }
 
+// ----------------------- PARSE WORKOUT (model choice up to you) -----------------------
 export async function parseWorkoutText(text: string) {
   try {
-    // Validate input
-    if (!text || text.trim().length === 0) {
-      return { success: false, error: "No text provided to parse" }
-    }
-
-    if (text.length > 4000) {
-      // Reasonable limit
-      return { success: false, error: "Text too long to process" }
-    }
+    if (!text?.trim())
+      return { success: false, error: "No text provided to parse" };
+    if (text.length > 4000)
+      return { success: false, error: "Text too long to process" };
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: `You are a fitness expert AI that parses workout descriptions into structured data. 
-          Parse the user's workout description and return a JSON object matching this schema:
+          content: `You are a fitness expert AI that parses workout descriptions into structured data.
+          Return ONLY a JSON object matching this schema:
           ${JSON.stringify(workoutSchema, null, 2)}
-          
           Guidelines:
-          - Infer reasonable values for missing information
-          - For strength exercises, estimate weight based on common ranges for average adults
-          - For cardio, estimate duration and distance if mentioned
-          - Categorize exercises as: strength, cardio, flexibility, or other
-          - If no workout name is provided, create a descriptive one based on the exercises
-          - Estimate rest time between sets (typically 60-180 seconds for strength, 30-60 for cardio)
-          - If sets/reps aren't specified, use reasonable defaults (3 sets of 8-12 reps for strength)
-          - Always include at least one exercise with at least one set
-          - Be conservative with weight estimates - better to underestimate than overestimate`,
+          - If sets/reps missing: default to 3 sets of 8-12 reps for strength
+          - Always include at least one exercise with one set
+          - Prefer conservative weight estimates
+          - If name missing, infer a descriptive name`,
         },
-        {
-          role: "user",
-          content: text,
-        },
+        { role: "user", content: text },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.3, // Lower temperature for more consistent parsing
+      temperature: 0.3,
       max_tokens: 2000,
-    })
+    });
 
-    const content = completion.choices[0].message.content
-    if (!content) {
-      return { success: false, error: "No response from AI parser" }
-    }
+    const content = completion.choices[0]?.message?.content;
+    if (!content)
+      return { success: false, error: "No response from AI parser" };
 
-    let parsedWorkout
+    let parsed: unknown;
     try {
-      parsedWorkout = JSON.parse(content)
-    } catch (error) {
-      console.error("JSON parsing error:", error)
-      return { success: false, error: "Invalid response format from AI parser" }
+      parsed = JSON.parse(content);
+    } catch {
+      return {
+        success: false,
+        error: "Invalid response format from AI parser",
+      };
     }
 
-    // Validate the parsed workout
-    const validatedWorkout = WorkoutValidationSchema.parse(parsedWorkout)
-
-    // Additional validation
-    if (validatedWorkout.exercises.length === 0) {
-      return { success: false, error: "No exercises found in workout description" }
+    const validated = WorkoutValidationSchema.parse(parsed);
+    if (validated.exercises.length === 0) {
+      return {
+        success: false,
+        error: "No exercises found in workout description",
+      };
     }
 
-    return { success: true, workout: validatedWorkout }
+    return { success: true, workout: validated };
   } catch (error) {
-    console.error("Workout parsing error:", error)
-
+    console.error("Workout parsing error:", error);
     if (error instanceof z.ZodError) {
       return {
         success: false,
-        error: `Invalid workout data: ${error.errors.map((e) => e.message).join(", ")}`,
-      }
+        error: `Invalid workout data: ${error.errors
+          .map((e) => e.message)
+          .join(", ")}`,
+      };
     }
-
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to parse workout description",
-    }
+      error: (error as Error)?.message ?? "Failed to parse workout description",
+    };
   }
 }
 
-export async function saveWorkout(workoutData: z.infer<typeof WorkoutValidationSchema>) {
+// ----------------------- SAVE WORKOUT (uses real user) -----------------------
+export async function saveWorkout(
+  workoutData: z.infer<typeof WorkoutValidationSchema>
+) {
   try {
-    // Calculate estimated calories burned
-    const estimatedCalories = estimateCaloriesBurned(workoutData)
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: "Not authenticated" };
+
+    const estimatedCalories = estimateCaloriesBurned(workoutData);
 
     const workout = await prisma.workout.create({
       data: {
-        userId: DEMO_USER_ID,
+        userId: user.id, // ✅ real user
         name: workoutData.name,
         duration: workoutData.duration,
         caloriesBurned: estimatedCalories,
@@ -242,74 +215,72 @@ export async function saveWorkout(workoutData: z.infer<typeof WorkoutValidationS
         },
       },
       include: {
-        exercises: {
-          include: {
-            sets: true,
-          },
-        },
+        exercises: { include: { sets: true } },
       },
-    })
+    });
 
-    revalidatePath("/workouts")
-    revalidatePath("/")
+    revalidatePath("/workouts");
+    revalidatePath("/");
 
-    return { success: true, workout }
+    return { success: true, workout };
   } catch (error) {
-    console.error("Save workout error:", error)
-    return { success: false, error: "Failed to save workout" }
+    console.error("Save workout error:", error);
+    return { success: false, error: "Failed to save workout" };
   }
 }
 
-function estimateCaloriesBurned(workoutData: z.infer<typeof WorkoutValidationSchema>): number {
-  let totalCalories = 0
-  const duration = workoutData.duration || 60 // Default 60 minutes if not specified
-
-  for (const exercise of workoutData.exercises) {
-    switch (exercise.category) {
-      case "strength":
-        // Estimate 5-8 calories per minute for strength training
-        totalCalories += duration * 6
-        break
-      case "cardio":
-        // Estimate 8-12 calories per minute for cardio
-        totalCalories += duration * 10
-        break
-      case "flexibility":
-        // Estimate 2-4 calories per minute for flexibility
-        totalCalories += duration * 3
-        break
-      default:
-        // General estimate
-        totalCalories += duration * 5
-        break
-    }
-  }
-
-  // Average across exercises and apply reasonable bounds
-  const avgCalories = Math.round(totalCalories / workoutData.exercises.length)
-  return Math.min(Math.max(avgCalories, 50), 800) // Between 50-800 calories
-}
-
+// ----------------------- GET WORKOUTS (per real user) -----------------------
 export async function getWorkouts() {
   try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: "Not authenticated" };
+
     const workouts = await prisma.workout.findMany({
-      where: { userId: DEMO_USER_ID },
+      where: { userId: user.id }, // ✅ real user
       include: {
         exercises: {
           include: {
-            sets: {
-              orderBy: { order: "asc" },
-            },
+            sets: { orderBy: { order: "asc" } },
           },
           orderBy: { order: "asc" },
         },
       },
       orderBy: { date: "desc" },
-    })
+    });
 
-    return { success: true, workouts }
+    return { success: true, workouts };
   } catch (error) {
-    console.error("Get workouts error:", error)
-    return { success: false, error: "Failed to fetch workouts" }
+    console.error("Get workouts error:", error);
+    return { success: false, error: "Failed to fetch workouts" };
   }
+}
+
+// ----------------------- Calories helper -----------------------
+function estimateCaloriesBurned(
+  workoutData: z.infer<typeof WorkoutValidationSchema>
+): number {
+  let totalCalories = 0;
+  const duration = workoutData.duration || 60;
+
+  for (const exercise of workoutData.exercises) {
+    switch (exercise.category) {
+      case "strength":
+        totalCalories += duration * 6;
+        break;
+      case "cardio":
+        totalCalories += duration * 10;
+        break;
+      case "flexibility":
+        totalCalories += duration * 3;
+        break;
+      default:
+        totalCalories += duration * 5;
+        break;
+    }
+  }
+
+  const avg = Math.round(
+    totalCalories / Math.max(workoutData.exercises.length, 1)
+  );
+  return Math.min(Math.max(avg, 50), 800);
 }

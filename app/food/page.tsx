@@ -1,175 +1,229 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { AppLayout } from "@/components/app-layout"
-import { MealSection } from "@/components/food/meal-section"
-import { VoiceInput } from "@/components/workouts/voice-input"
-import { FoodModal } from "@/components/food/food-modal"
-import { useToast } from "@/hooks/use-toast"
-import { transcribeAudio } from "@/lib/actions/workout-actions"
-import { parseFoodText, saveMeal, getMeals, removeMealItem } from "@/lib/actions/food-actions"
+import { useEffect, useState } from "react";
+import { AppLayout } from "@/components/app-layout";
+import { MealSection } from "@/components/food/meal-section";
+import { VoiceInput } from "@/components/workouts/voice-input";
+import { FoodModal } from "@/components/food/food-modal";
+import { TemplateBrowserModal } from "@/components/food/template-browser-modal";
+import { useToast } from "@/hooks/use-toast";
+import PageTitle from "@/components/page-title";
+import { transcribeAudio } from "@/lib/actions/workout-actions";
+import type { MealType } from "@prisma/client";
 
-interface ParsedMeal {
-  type: "breakfast" | "lunch" | "dinner" | "snack" | "mid_meal"
-  items: Array<{
-    name: string
-    quantity: number
-    unit: string
-    calories: number
-    protein: number
-    carbs: number
-    fat: number
-    fiber?: number
-    sugar?: number
-    sodium?: number
-  }>
-}
+// ----- Types -----
+type ParsedMealItem = {
+  name: string;
+  quantity: number;
+  unit: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
+};
+type ParsedMeal = { type: MealType; items: ParsedMealItem[] };
 
-interface MealItem {
-  id: string
-  name: string
-  quantity: number
-  unit: string
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
-}
+type MealItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};
+
+// ----- Labels -----
+const MEAL_LABEL: Record<MealType, string> = {
+  BREAKFAST: "Breakfast",
+  LUNCH: "Lunch",
+  DINNER: "Dinner",
+  SNACK: "Snack",
+};
+
+// =====================================================
 
 export default function FoodPage() {
+  const { toast } = useToast();
+
   const [meals, setMeals] = useState<{
-    breakfast: any[]
-    lunch: any[]
-    dinner: any[]
-    snack: any[]
-    mid_meal: any[]
+    breakfast: any[];
+    lunch: any[];
+    dinner: any[];
+    snack: any[];
   }>({
     breakfast: [],
     lunch: [],
     dinner: [],
     snack: [],
-    mid_meal: [],
-  })
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [parsedMeal, setParsedMeal] = useState<ParsedMeal | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [currentMealType, setCurrentMealType] = useState<string>("")
-  const { toast } = useToast()
+  });
 
+  const [currentMealType, setCurrentMealType] = useState<MealType | "">("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [parsedMeal, setParsedMeal] = useState<ParsedMeal | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const [browseType, setBrowseType] = useState<MealType | null>(null);
+
+  // ----- Load meals on mount -----
   useEffect(() => {
-    loadMeals()
-  }, [])
+    loadMeals();
+  }, []);
 
-  const loadMeals = async () => {
-    const result = await getMeals()
-    if (result.success) {
+  async function loadMeals() {
+    try {
+      const res = await fetch("/api/meals", { cache: "no-store" });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to load");
       setMeals(
-        result.meals || {
-          breakfast: [],
-          lunch: [],
-          dinner: [],
-          snack: [],
-          mid_meal: [],
-        },
-      )
+        data.meals || { breakfast: [], lunch: [], dinner: [], snack: [] }
+      );
+    } catch (e) {
+      console.error(e);
+      toast({
+        title: "Error",
+        description: "Could not load meals.",
+        variant: "destructive",
+      });
     }
   }
 
-  const handleAddFood = (mealType: string) => {
-    setCurrentMealType(mealType)
-    // This will be handled by the voice input at the bottom
+  // ----- API helpers -----
+  async function apiParseFood(text: string, mealType: MealType) {
+    const res = await fetch("/api/food/parse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, mealType }),
+    });
+    return res.json();
+  }
+
+  async function apiSaveMeal(meal: ParsedMeal) {
+    const res = await fetch("/api/food/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(meal),
+    });
+    return res.json();
+  }
+
+  async function apiRemoveMealItem(itemId: string) {
+    const res = await fetch(`/api/food/item?id=${encodeURIComponent(itemId)}`, {
+      method: "DELETE",
+    });
+    return res.json();
+  }
+
+  async function apiSaveTemplate(meal: ParsedMeal, name?: string) {
+    const res = await fetch("/api/meal-templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ meal, name }),
+    });
+    return res.json();
+  }
+
+  // ----- UI handlers -----
+  function handleAddFood(mealType: string) {
+    setCurrentMealType(mealType.toUpperCase() as MealType);
   }
 
   const handleVoiceInput = async (input: string, isVoice: boolean) => {
     if (!currentMealType) {
       toast({
         title: "Select Meal Type",
-        description: "Please click 'Add Food' on a meal section first.",
+        description: "Click 'Add Food' on a meal section first.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setIsProcessing(true)
-    setIsModalOpen(true)
-    setParsedMeal(null)
+    setIsProcessing(true);
+    setIsModalOpen(true);
+    setParsedMeal(null);
 
     try {
-      let textToProcess = input
+      let textToProcess = input;
 
       if (isVoice) {
-        // Transcribe audio first
-        const transcriptionResult = await transcribeAudio(input)
-        if (!transcriptionResult.success) {
-          throw new Error(transcriptionResult.error)
-        }
-        textToProcess = transcriptionResult.text
-
+        const tx = await transcribeAudio(input);
+        if (!tx?.success) throw new Error(tx?.error || "Transcription failed");
+        textToProcess = tx.text || "";
         toast({
-          title: "Audio Transcribed",
+          title: "Audio transcribed",
           description: `"${textToProcess}"`,
-        })
+        });
       }
 
-      // Parse the food text
-      const parseResult = await parseFoodText(textToProcess, currentMealType)
-      if (!parseResult.success) {
-        throw new Error(parseResult.error)
-      }
-
-      setParsedMeal(parseResult.meal)
-    } catch (error) {
-      console.error("Error processing input:", error)
+      const parsed = await apiParseFood(textToProcess, currentMealType);
+      if (!parsed.success) throw new Error(parsed.error || "Parsing failed");
+      setParsedMeal(parsed.meal || null);
+    } catch (err: any) {
+      console.error(err);
       toast({
-        title: "Processing Error",
-        description: error instanceof Error ? error.message : "Failed to process food",
+        title: "Processing error",
+        description: err?.message || "Failed to process meal",
         variant: "destructive",
-      })
-      setIsModalOpen(false)
+      });
+      setIsModalOpen(false);
     } finally {
-      setIsProcessing(false)
+      setIsProcessing(false);
     }
-  }
+  };
 
   const handleSaveMeal = async (meal: ParsedMeal) => {
-    const result = await saveMeal(meal)
-    if (result.success) {
-      toast({
-        title: "Meal Saved",
-        description: "Your meal has been logged successfully!",
-      })
-      await loadMeals()
-      setCurrentMealType("")
+    const r = await apiSaveMeal(meal);
+    if (r.success) {
+      toast({ title: "Meal saved", description: "Added to today." });
+      await loadMeals();
+      setIsModalOpen(false);
+      setParsedMeal(null);
+      setCurrentMealType("");
     } else {
       toast({
-        title: "Save Error",
-        description: result.error || "Failed to save meal",
+        title: "Save error",
+        description: r.error || "Failed to save meal",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
+
+  const handleSaveTemplate = async (meal: ParsedMeal, name?: string) => {
+    const r = await apiSaveTemplate(meal, name);
+    if (r.success) {
+      toast({ title: "Template saved", description: "Added to your library." });
+    } else {
+      toast({
+        title: "Error",
+        description: r.error || "Failed to save template",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleRemoveItem = async (itemId: string) => {
-    const result = await removeMealItem(itemId)
-    if (result.success) {
-      toast({
-        title: "Item Removed",
-        description: "Food item has been removed from your meal.",
-      })
-      await loadMeals()
+    const r = await apiRemoveMealItem(itemId);
+    if (r.success) {
+      toast({ title: "Item removed" });
+      await loadMeals();
     } else {
       toast({
-        title: "Remove Error",
-        description: result.error || "Failed to remove item",
+        title: "Remove error",
+        description: r.error || "Failed to remove item",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
-  // Convert meal data to the format expected by MealSection
+  // ----- Helpers -----
   const convertMealItems = (mealData: any[]): MealItem[] => {
+    if (!Array.isArray(mealData)) return [];
     return mealData.flatMap((meal) =>
-      meal.items.map((item: any) => ({
+      (meal.items || []).map((item: any) => ({
         id: item.id,
         name: item.name,
         quantity: item.quantity,
@@ -178,68 +232,70 @@ export default function FoodPage() {
         protein: item.protein,
         carbs: item.carbs,
         fat: item.fat,
-      })),
-    )
-  }
+      }))
+    );
+  };
+
+  // =====================================================
 
   return (
     <AppLayout>
       <div className="p-6 pb-32">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">Food</h1>
-          <p className="text-muted-foreground">Track your meals and nutrition.</p>
+          <PageTitle>Food</PageTitle>
+          <p className="text-muted-foreground">
+            Track your meals and nutrition.
+          </p>
         </div>
 
         <div className="space-y-6">
           <MealSection
-            type="breakfast"
+            type="BREAKFAST"
             title="Breakfast"
             items={convertMealItems(meals.breakfast)}
             onAddFood={handleAddFood}
             onRemoveItem={handleRemoveItem}
+            onBrowseTemplates={() => setBrowseType("BREAKFAST")} // ⬅ add this prop in MealSection
           />
 
           <MealSection
-            type="lunch"
+            type="LUNCH"
             title="Lunch"
             items={convertMealItems(meals.lunch)}
             onAddFood={handleAddFood}
             onRemoveItem={handleRemoveItem}
+            onBrowseTemplates={() => setBrowseType("LUNCH")}
           />
 
           <MealSection
-            type="dinner"
+            type="DINNER"
             title="Dinner"
             items={convertMealItems(meals.dinner)}
             onAddFood={handleAddFood}
             onRemoveItem={handleRemoveItem}
+            onBrowseTemplates={() => setBrowseType("DINNER")}
           />
 
           <MealSection
-            type="snack"
+            type="SNACK"
             title="Snack"
             items={convertMealItems(meals.snack)}
             onAddFood={handleAddFood}
             onRemoveItem={handleRemoveItem}
-          />
-
-          <MealSection
-            type="mid_meal"
-            title="Mid-meal"
-            items={convertMealItems(meals.mid_meal)}
-            onAddFood={handleAddFood}
-            onRemoveItem={handleRemoveItem}
+            onBrowseTemplates={() => setBrowseType("SNACK")}
           />
         </div>
 
         <FoodModal
           isOpen={isModalOpen}
           onClose={() => {
-            setIsModalOpen(false)
-            setCurrentMealType("")
+            setIsModalOpen(false);
+            setParsedMeal(null);
+            setCurrentMealType("");
           }}
           mealData={parsedMeal}
           onSave={handleSaveMeal}
+          onSaveTemplate={handleSaveTemplate} // ⬅ enables “Save as Template”
           isLoading={isProcessing}
         />
       </div>
@@ -248,11 +304,24 @@ export default function FoodPage() {
         onSubmit={handleVoiceInput}
         placeholder={
           currentMealType
-            ? `Describe your ${currentMealType}... (e.g., 'I had 2 eggs, 1 slice of toast with butter, and a glass of orange juice')`
+            ? `Describe your ${MEAL_LABEL[currentMealType]}...`
             : "Click 'Add Food' on a meal section first, then describe what you ate..."
         }
         disabled={!currentMealType}
       />
+
+      {/* Template picker */}
+      {browseType && (
+        <TemplateBrowserModal
+          isOpen={!!browseType}
+          mealType={browseType}
+          onClose={() => setBrowseType(null)}
+          onUsed={async () => {
+            await loadMeals();
+            toast({ title: "Added from template" });
+          }}
+        />
+      )}
     </AppLayout>
-  )
+  );
 }

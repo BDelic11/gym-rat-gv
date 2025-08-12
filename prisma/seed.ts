@@ -1,8 +1,8 @@
-import { prisma } from "./prisma"
+import { prisma } from "../lib/prisma";
 
 export async function seedDatabase() {
   try {
-    console.log("🌱 Starting database seed...")
+    console.log("🌱 Starting database seed...");
 
     // Create demo user
     const user = await prisma.user.upsert({
@@ -31,12 +31,12 @@ export async function seedDatabase() {
       include: {
         profile: true,
       },
-    })
+    });
 
-    console.log("✅ Created demo user:", user.email)
+    console.log("✅ Created demo user:", user.email);
 
     // Create demo workout for today
-    const today = new Date()
+    const today = new Date();
     const workout = await prisma.workout.upsert({
       where: { id: "demo-workout-today" },
       update: {},
@@ -76,13 +76,13 @@ export async function seedDatabase() {
           ],
         },
       },
-    })
+    });
 
-    console.log("✅ Created demo workout:", workout.name)
+    console.log("✅ Created demo workout:", workout.name);
 
     // Create demo workout for yesterday (for trend calculation)
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
 
     await prisma.workout.upsert({
       where: { id: "demo-workout-yesterday" },
@@ -107,9 +107,9 @@ export async function seedDatabase() {
           ],
         },
       },
-    })
+    });
 
-    console.log("✅ Created yesterday's workout for trend calculation")
+    console.log("✅ Created yesterday's workout for trend calculation");
 
     // Create demo meal for today
     const meal = await prisma.meal.upsert({
@@ -118,7 +118,7 @@ export async function seedDatabase() {
       create: {
         id: "demo-meal-today",
         userId: user.id,
-        type: "breakfast",
+        type: "BREAKFAST",
         date: today,
         items: {
           create: [
@@ -130,8 +130,6 @@ export async function seedDatabase() {
               protein: 16.9,
               carbs: 66.3,
               fat: 6.9,
-              fiber: 10.6,
-              order: 1,
             },
             {
               name: "Banana",
@@ -141,8 +139,6 @@ export async function seedDatabase() {
               protein: 1.3,
               carbs: 27,
               fat: 0.4,
-              fiber: 3.1,
-              order: 2,
             },
             {
               name: "Greek Yogurt",
@@ -152,21 +148,19 @@ export async function seedDatabase() {
               protein: 17,
               carbs: 6,
               fat: 0.4,
-              fiber: 0,
-              order: 3,
             },
           ],
         },
       },
-    })
+    });
 
-    console.log("✅ Created demo meal:", meal.type)
+    console.log("✅ Created demo meal:", meal.type);
 
     // Create additional meals for better dashboard data
     await prisma.meal.create({
       data: {
         userId: user.id,
-        type: "lunch",
+        type: "LUNCH",
         date: today,
         items: {
           create: [
@@ -178,7 +172,6 @@ export async function seedDatabase() {
               protein: 62,
               carbs: 0,
               fat: 7.4,
-              order: 1,
             },
             {
               name: "Brown Rice",
@@ -188,8 +181,6 @@ export async function seedDatabase() {
               protein: 5,
               carbs: 45,
               fat: 1.8,
-              fiber: 3.5,
-              order: 2,
             },
             {
               name: "Mixed Vegetables",
@@ -199,21 +190,19 @@ export async function seedDatabase() {
               protein: 3,
               carbs: 13,
               fat: 0.3,
-              fiber: 4,
-              order: 3,
             },
           ],
         },
       },
-    })
+    });
 
-    console.log("✅ Created additional demo meals")
+    console.log("✅ Created additional demo meals");
 
-    console.log("🎉 Database seeded successfully!")
-    return { user, workout, meal }
+    console.log("🎉 Database seeded successfully!");
+    return { user, workout, meal };
   } catch (error) {
-    console.error("❌ Error seeding database:", error)
-    throw error
+    console.error("❌ Error seeding database:", error);
+    throw error;
   }
 }
 
@@ -221,11 +210,11 @@ export async function seedDatabase() {
 if (require.main === module) {
   seedDatabase()
     .then(() => {
-      console.log("Seed completed")
-      process.exit(0)
+      console.log("Seed completed");
+      process.exit(0);
     })
     .catch((error) => {
-      console.error("Seed failed:", error)
-      process.exit(1)
-    })
+      console.error("Seed failed:", error);
+      process.exit(1);
+    });
 }

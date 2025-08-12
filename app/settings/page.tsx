@@ -1,12 +1,21 @@
-import { AppLayout } from "@/components/app-layout"
+import { AppLayout } from "@/components/app-layout";
+import PageTitle from "@/components/page-title";
+import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/login");
+  }
   return (
     <AppLayout>
       <div className="p-6">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground">Configure your app preferences.</p>
+          <PageTitle>Settings</PageTitle>
+          <p className="text-muted-foreground">
+            Configure your app preferences.
+          </p>
         </div>
 
         <div className="rounded-lg border bg-card p-6">
@@ -15,21 +24,29 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="font-medium">Dark Mode</h4>
-                <p className="text-sm text-muted-foreground">Toggle dark/light theme</p>
+                <p className="text-sm text-muted-foreground">
+                  Toggle dark/light theme
+                </p>
               </div>
-              <button className="text-sm text-primary hover:underline">Toggle</button>
+              <button className="text-sm text-primary hover:underline">
+                Toggle
+              </button>
             </div>
 
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="font-medium">Notifications</h4>
-                <p className="text-sm text-muted-foreground">Workout reminders and updates</p>
+                <p className="text-sm text-muted-foreground">
+                  Workout reminders and updates
+                </p>
               </div>
-              <button className="text-sm text-primary hover:underline">Configure</button>
+              <button className="text-sm text-primary hover:underline">
+                Configure
+              </button>
             </div>
           </div>
         </div>
       </div>
     </AppLayout>
-  )
+  );
 }
