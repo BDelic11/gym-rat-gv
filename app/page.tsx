@@ -10,6 +10,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import PageTitle from "@/components/page-title";
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 
 async function DashboardContent() {
   const user = await getCurrentUser();
@@ -73,7 +74,7 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   return (
-    <AppLayout>
+    <AppLayout user={user}>
       <div className="p-6">
         <div className="mb-6">
           <PageTitle>Dashboard</PageTitle>
@@ -83,15 +84,7 @@ export default async function DashboardPage() {
         </div>
 
         <ErrorBoundary>
-          <Suspense
-            fallback={
-              <LoadingSpinner
-                size="lg"
-                text="Loading dashboard..."
-                className="py-12"
-              />
-            }
-          >
+          <Suspense fallback={<DashboardSkeleton />}>
             <DashboardContent />
           </Suspense>
         </ErrorBoundary>

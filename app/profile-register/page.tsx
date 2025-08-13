@@ -15,7 +15,13 @@ export default async function OnboardingProfilePage() {
   });
 
   return (
-    <AppLayout>
+    <main
+      className="
+            flex-1 overflow-y-auto
+            pt-16 md:pt-0
+          "
+      style={{ paddingTop: "calc(env(safe-area-inset-top) + 4rem)" }}
+    >
       <div className="p-6 max-w-2xl mx-auto">
         <div className="mb-6">
           <PageTitle>Complete your profile</PageTitle>
@@ -25,6 +31,6 @@ export default async function OnboardingProfilePage() {
         </div>
         <OnboardingProfileForm existing={profile} />
       </div>
-    </AppLayout>
+    </main>
   );
 }

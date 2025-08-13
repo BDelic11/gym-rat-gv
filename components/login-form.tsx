@@ -51,10 +51,8 @@ export function LoginForm({ className, onValidSubmit, ...props }: Props) {
       if (onValidSubmit) {
         await onValidSubmit(parsed.data);
       } else if ((props as any)?.action) {
-        // IMPORTANT: await the server action and catch errors
         await (props as any).action(formData);
       }
-      // if server action redirects on success, code after this won’t run
     } catch (e: any) {
       setFormError(e?.message ?? "Login failed");
     } finally {
@@ -135,7 +133,7 @@ export function LoginForm({ className, onValidSubmit, ...props }: Props) {
           </span>
         </div>
 
-        <Button variant="outline" className="w-full" type="button">
+        {/* <Button variant="outline" className="w-full" type="button">
           <Image
             src={googleIcon}
             alt="Google Logo"
@@ -144,7 +142,7 @@ export function LoginForm({ className, onValidSubmit, ...props }: Props) {
             className="mr-2 rounded-full"
           />
           Login with Google
-        </Button>
+        </Button> */}
       </div>
 
       <div className="text-center text-sm">

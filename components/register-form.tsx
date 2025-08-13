@@ -10,7 +10,7 @@ import logo from "@/public/logos/gym-rat-transparent-logo.svg";
 
 import { useState } from "react";
 import { registerSchema, RegisterFormValues } from "@/schemas/auth";
-import { z } from "zod";
+import { Loader2 } from "lucide-react";
 
 type Props = React.ComponentPropsWithoutRef<"form"> & {
   onValidSubmit?: (data: RegisterFormValues) => void | Promise<void>;
@@ -21,10 +21,12 @@ export function RegisterForm({ className, onValidSubmit, ...props }: Props) {
     Partial<Record<keyof RegisterFormValues, string>>
   >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrors({});
+    setFormError(null);
     setIsSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
@@ -48,20 +50,24 @@ export function RegisterForm({ className, onValidSubmit, ...props }: Props) {
       return;
     }
 
-    if (onValidSubmit) {
-      await onValidSubmit(parsed.data);
-    } else {
-      // Default: let form submit to provided action prop if given
-      (props as any)?.action?.(formData);
+    try {
+      if (onValidSubmit) {
+        await onValidSubmit(parsed.data);
+      } else if ((props as any)?.action) {
+        await (props as any).action(formData);
+      }
+    } catch (e: any) {
+      setFormError(e?.message ?? "Registration failed");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
   }
 
   return (
     <form
       className={cn("flex flex-col gap-6", className)}
       onSubmit={handleSubmit}
+      aria-busy={isSubmitting}
       {...props}
     >
       <div className="flex flex-col items-start gap-2 text-center">
@@ -143,8 +149,21 @@ export function RegisterForm({ className, onValidSubmit, ...props }: Props) {
           )}
         </div>
 
+        {formError && (
+          <p className="text-sm text-red-500" role="alert">
+            {formError}
+          </p>
+        )}
+
         <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? "Creating..." : "Create account"}
+          {isSubmitting ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Creating…
+            </span>
+          ) : (
+            "Create account"
+          )}
         </Button>
 
         <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
@@ -152,7 +171,13 @@ export function RegisterForm({ className, onValidSubmit, ...props }: Props) {
             Or continue with
           </span>
         </div>
-        <Button variant="outline" className="w-full" type="button">
+
+        {/* <Button
+          variant="outline"
+          className="w-full"
+          type="button"
+          disabled={isSubmitting}
+        >
           <Image
             src={googleIcon}
             alt="Google Logo"
@@ -161,7 +186,7 @@ export function RegisterForm({ className, onValidSubmit, ...props }: Props) {
             className="mr-2 rounded-full"
           />
           Sign up with Google
-        </Button>
+        </Button> */}
       </div>
 
       <div className="text-center text-sm">
