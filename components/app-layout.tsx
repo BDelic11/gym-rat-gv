@@ -31,9 +31,16 @@ export function AppLayout({ children, user }: AppLayoutProps) {
           "
           style={{ paddingTop: "env(safe-area-inset-top)" }}
         >
-          <MobileNav />
+          <MobileNav user={user} />
+
           <div className="flex items-center gap-2">
-            <Image src={logo} alt="GYM AI Logo" className="w-32 h-auto" />
+            <Image
+              src={logo}
+              alt="GYM AI Logo"
+              className="w-32 h-auto"
+              priority
+              quality={80}
+            />
           </div>
         </header>
 

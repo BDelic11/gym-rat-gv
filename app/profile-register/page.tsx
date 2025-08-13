@@ -1,4 +1,3 @@
-// app/onboarding/profile/page.tsx
 import { AppLayout } from "@/components/app-layout";
 import PageTitle from "@/components/page-title";
 import { getCurrentUser } from "@/lib/auth";
