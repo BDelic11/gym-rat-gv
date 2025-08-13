@@ -9,7 +9,7 @@ export default async function SettingsPage() {
     redirect("/login");
   }
   return (
-    <AppLayout>
+    <AppLayout user={user}>
       <div className="p-6">
         <div className="mb-6">
           <PageTitle>Settings</PageTitle>

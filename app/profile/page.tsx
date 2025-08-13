@@ -16,7 +16,7 @@ export default async function ProfilePage() {
   const { profile } = data;
 
   return (
-    <AppLayout>
+    <AppLayout user={data.user}>
       <div className="p-6">
         <div className="mb-6 flex items-center justify-between">
           <div>

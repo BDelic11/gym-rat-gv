@@ -8,15 +8,16 @@ import logo from "@/public/logos/gym-rat-transparent-logo.svg";
 
 interface AppLayoutProps {
   children: React.ReactNode;
+  user?: { name?: string | null; email?: string | null } | null;
 }
 
-export function AppLayout({ children }: AppLayoutProps) {
+export function AppLayout({ children, user }: AppLayoutProps) {
   return (
     // Lock the whole app to the viewport so only <main> can scroll
     <div className="fixed inset-0 flex bg-background">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex">
-        <AppSidebar />
+        <AppSidebar user={user} />
       </aside>
 
       {/* Main column */}

@@ -47,16 +47,16 @@ const navigation = [
     icon: Settings,
   },
 ];
+type SidebarUser = { name?: string | null; email?: string | null };
 
 interface AppSidebarProps {
   className?: string;
+  user?: SidebarUser | null;
 }
 
-export function AppSidebar({ className }: AppSidebarProps) {
+export function AppSidebar({ className, user }: AppSidebarProps) {
   const pathname = usePathname();
-  const { user, loading } = useCurrentUser();
 
-  if (loading) return null;
   if (!user) {
     redirect("/login");
   }

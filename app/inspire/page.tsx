@@ -1,46 +1,15 @@
-"use client";
-
-import { useState } from "react";
 import { AppLayout } from "@/components/app-layout";
-import PageTitle from "@/components/page-title";
-import { InspireCard } from "@/components/inspire/inspire-card";
-import { MealInspireModal } from "@/components/inspire/meal-inspire-modal";
-import { WorkoutInspireModal } from "@/components/inspire/workout-inspire-modal";
-import { UtensilsCrossed, Dumbbell } from "lucide-react";
+import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import InspireClient from "./inspire-client";
 
-export default function InspirePage() {
-  const [openMeal, setOpenMeal] = useState(false);
-  const [openWorkout, setOpenWorkout] = useState(false);
+export default async function InspirePage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
 
   return (
-    <AppLayout>
-      <div className="p-6">
-        <div className="mb-6">
-          <PageTitle>Inspire</PageTitle>
-          <p className="text-muted-foreground">
-            Brzo generiraj ideje za obroke i treninge — prilagođeno tvojim
-            željama.
-          </p>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <InspireCard
-            title="Meal"
-            description="Predloži mi obrok po mjeri."
-            icon={UtensilsCrossed}
-            onClick={() => setOpenMeal(true)}
-          />
-          <InspireCard
-            title="Workout"
-            description="Predloži mi trening plan."
-            icon={Dumbbell}
-            onClick={() => setOpenWorkout(true)}
-          />
-        </div>
-
-        <MealInspireModal open={openMeal} onOpenChange={setOpenMeal} />
-        <WorkoutInspireModal open={openWorkout} onOpenChange={setOpenWorkout} />
-      </div>
+    <AppLayout user={{ name: user.name, email: user.email }}>
+      <InspireClient />
     </AppLayout>
   );
 }
