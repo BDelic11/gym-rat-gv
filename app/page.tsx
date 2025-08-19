@@ -1,72 +1,23 @@
 import { Suspense } from "react";
 import { AppLayout } from "@/components/app-layout";
-import { StatsCard } from "@/components/dashboard/stats-card";
-import { ProteinProgress } from "@/components/dashboard/protein-progress";
-import { TrendsChart } from "@/components/dashboard/trends-chart";
-import { AchievementsCard } from "@/components/dashboard/achievements-card";
-import { getDashboardData } from "@/lib/dashboard-data";
 import { ErrorBoundary } from "@/components/error-boundary";
 import PageTitle from "@/components/page-title";
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 
-async function DashboardContent() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+import CaloriesBurnedSection from "@/components/dashboard/sections/calories-burned-section";
+import CaloriesEatenSection from "@/components/dashboard/sections/calories-eaten-section";
+import NetCaloriesSection from "@/components/dashboard/sections/net-calories-section";
+import ProteinProgressSection from "@/components/dashboard/sections/protein-progress-section";
+import AchievementsSection from "@/components/dashboard/sections/achievements-section";
+import TrendsChartSection from "@/components/dashboard/sections/trends-chart-section";
 
-  const d = await getDashboardData(user.id);
-
-  const netCalories = d.caloriesEatenToday - d.caloriesBurnedToday;
-  const caloriesRemaining = d.targetCalories - d.caloriesEatenToday;
-
-  return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      <StatsCard
-        title="Calories Burned Today"
-        value={d.caloriesBurnedToday}
-        trend={{
-          value: Math.round(Math.abs(d.caloriesTrend)),
-          isPositive: d.caloriesTrend > 0,
-          label: "vs yesterday",
-        }}
-      />
-
-      <StatsCard
-        title="Calories Eaten Today"
-        value={d.caloriesEatenToday}
-        subtitle={
-          caloriesRemaining > 0
-            ? `${caloriesRemaining} remaining`
-            : `${Math.abs(caloriesRemaining)} over target`
-        }
-      />
-
-      <StatsCard
-        title="Net Calories"
-        value={netCalories}
-        subtitle={`vs ${d.targetCalories} target`}
-      />
-
-      <ProteinProgress current={d.proteinToday} target={d.targetProtein} />
-
-      {/* NEW: Achievements / Streaks */}
-      <AchievementsCard
-        proteinYesterday={d.proteinYesterday}
-        targetProtein={d.targetProtein}
-        netYesterday={d.netYesterday}
-        targetCalories={d.targetCalories}
-        hitProteinYesterday={d.hitProteinYesterday}
-        hitCaloriesYesterday={d.hitCaloriesYesterday}
-        currentStreak={d.currentStreak}
-        bestStreak={d.bestStreak}
-        praise={d.praise}
-      />
-
-      <TrendsChart data={d.trendsData} className="md:col-span-2" />
-    </div>
-  );
-}
+import {
+  StatCardSkeleton,
+  ProteinProgressSkeleton,
+  AchievementsSkeleton,
+  TrendsChartSkeleton,
+} from "@/components/dashboard/part-skeleton";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -83,9 +34,33 @@ export default async function DashboardPage() {
         </div>
 
         <ErrorBoundary>
-          <Suspense fallback={<DashboardSkeleton />}>
-            <DashboardContent />
-          </Suspense>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <Suspense fallback={<StatCardSkeleton />}>
+              <CaloriesBurnedSection userId={user.id} />
+            </Suspense>
+
+            <Suspense fallback={<StatCardSkeleton />}>
+              <CaloriesEatenSection userId={user.id} />
+            </Suspense>
+
+            <Suspense fallback={<StatCardSkeleton />}>
+              <NetCaloriesSection userId={user.id} />
+            </Suspense>
+
+            <Suspense fallback={<ProteinProgressSkeleton />}>
+              <ProteinProgressSection userId={user.id} />
+            </Suspense>
+
+            <Suspense fallback={<AchievementsSkeleton />}>
+              <AchievementsSection userId={user.id} />
+            </Suspense>
+
+            <Suspense
+              fallback={<TrendsChartSkeleton className="md:col-span-2" />}
+            >
+              <TrendsChartSection userId={user.id} className="md:col-span-2" />
+            </Suspense>
+          </div>
         </ErrorBoundary>
       </div>
     </AppLayout>
