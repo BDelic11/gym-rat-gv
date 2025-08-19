@@ -3,8 +3,7 @@ import { AppLayout } from "@/components/app-layout";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { ProteinProgress } from "@/components/dashboard/protein-progress";
 import { TrendsChart } from "@/components/dashboard/trends-chart";
-import { AchievementsCard } from "@/components/dashboard/achievements-card"; // 👈 NEW
-import { LoadingSpinner } from "@/components/loading-spinner";
+import { AchievementsCard } from "@/components/dashboard/achievements-card";
 import { getDashboardData } from "@/lib/dashboard-data";
 import { ErrorBoundary } from "@/components/error-boundary";
 import PageTitle from "@/components/page-title";

@@ -1,4 +1,3 @@
-// lib/dashboard-data.ts
 import { prisma } from "@/lib/prisma";
 import {
   mifflinStJeorBMR,
@@ -7,6 +6,7 @@ import {
   proteinGrams,
   macroSplit,
 } from "./nutrition";
+import { unstable_cache, revalidateTag } from "next/cache";
 
 function ymd(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -48,11 +48,10 @@ async function ensureTargetsForUser(userId: string) {
 
   const pGrams = proteinGrams(profile.weight, profile.goal);
   if (!pGrams) {
-    const updated = await prisma.profile.update({
+    return prisma.profile.update({
       where: { userId },
       data: { tdee, targetCalories },
     });
-    return updated;
   }
 
   const { fatGrams, carbsGrams } = macroSplit({
@@ -60,7 +59,7 @@ async function ensureTargetsForUser(userId: string) {
     proteinGrams: pGrams,
   });
 
-  const updated = await prisma.profile.update({
+  return prisma.profile.update({
     where: { userId },
     data: {
       tdee,
@@ -70,8 +69,6 @@ async function ensureTargetsForUser(userId: string) {
       targetCarbs: carbsGrams,
     },
   });
-
-  return updated;
 }
 
 export async function recalcTargetsForUser(userId: string) {
@@ -88,13 +85,17 @@ export async function recalcTargetsForUser(userId: string) {
   return ensureTargetsForUser(userId);
 }
 
-export async function getDashboardData(userId: string) {
+/**
+ * Interna (nekesirana) varijanta – optimizirani upiti.
+ * Za 7-dnevni graf: jedan findMany i bucketiranje po danu.
+ */
+async function _getDashboardDataRaw(userId: string) {
   const profile = await ensureTargetsForUser(userId);
   const targetProtein = profile?.targetProtein ?? 0;
   const targetCalories = profile?.targetCalories ?? 0;
 
-  // ---------- Today ----------
-  const [todayMeals, todayWorkouts] = await Promise.all([
+  // paralelno: danas + jučer
+  const [todayMeals, todayWorkouts, yMeals, yWorkouts] = await Promise.all([
     prisma.meal.findMany({
       where: { userId, date: { gte: startOfDay(), lte: endOfDay() } },
       include: { items: true },
@@ -103,6 +104,22 @@ export async function getDashboardData(userId: string) {
       where: { userId, date: { gte: startOfDay(), lte: endOfDay() } },
       select: { caloriesBurned: true },
     }),
+    (async () => {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      return prisma.meal.findMany({
+        where: { userId, date: { gte: startOfDay(y), lte: endOfDay(y) } },
+        include: { items: true },
+      });
+    })(),
+    (async () => {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      return prisma.workout.findMany({
+        where: { userId, date: { gte: startOfDay(y), lte: endOfDay(y) } },
+        select: { caloriesBurned: true },
+      });
+    })(),
   ]);
 
   const caloriesEatenToday = Math.round(
@@ -120,20 +137,6 @@ export async function getDashboardData(userId: string) {
   const caloriesBurnedToday = Math.round(
     todayWorkouts.reduce((s, w) => s + (w.caloriesBurned || 0), 0)
   );
-
-  // ---------- Yesterday ----------
-  const y = new Date();
-  y.setDate(y.getDate() - 1);
-  const [yMeals, yWorkouts] = await Promise.all([
-    prisma.meal.findMany({
-      where: { userId, date: { gte: startOfDay(y), lte: endOfDay(y) } },
-      include: { items: true },
-    }),
-    prisma.workout.findMany({
-      where: { userId, date: { gte: startOfDay(y), lte: endOfDay(y) } },
-      select: { caloriesBurned: true },
-    }),
-  ]);
 
   const proteinYesterday = Math.round(
     yMeals.reduce(
@@ -157,22 +160,33 @@ export async function getDashboardData(userId: string) {
   const hitCaloriesYesterday =
     targetCalories > 0 && netYesterday <= targetCalories;
 
-  // ---------- 7-day chart (burned) ----------
-  const days: { day: string; calories: number }[] = [];
+  // ---------- 7-day chart (1 query, bucketiranje) ----------
+  const sevenDaysAgo = startOfDay(
+    new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)
+  );
+  const workouts7 = await prisma.workout.findMany({
+    where: { userId, date: { gte: sevenDaysAgo, lte: endOfDay() } },
+    select: { date: true, caloriesBurned: true },
+  });
+
+  const bucket = new Map<string, number>();
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const burned = await prisma.workout.aggregate({
-      where: { userId, date: { gte: startOfDay(d), lte: endOfDay(d) } },
-      _sum: { caloriesBurned: true },
-    });
-    days.push({
-      day: d.toLocaleDateString(undefined, { weekday: "short" }),
-      calories: Math.round(burned._sum.caloriesBurned || 0),
-    });
+    bucket.set(ymd(d), 0);
   }
+  for (const w of workouts7) {
+    const k = ymd(new Date(w.date));
+    if (bucket.has(k)) {
+      bucket.set(k, (bucket.get(k) || 0) + (w.caloriesBurned || 0));
+    }
+  }
+  const days = Array.from(bucket.entries()).map(([k, v]) => ({
+    day: new Date(k).toLocaleDateString(undefined, { weekday: "short" }),
+    calories: Math.round(v || 0),
+  }));
 
-  // ---------- Streaks (last 30 days, up to yesterday) ----------
+  // ---------- Streaks (30 dana – već imaš 2 upita; ostaje isto) ----------
   const from = startOfDay(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
   const to = endOfDay(new Date());
   const [rangeMeals, rangeWorkouts] = await Promise.all([
@@ -186,11 +200,8 @@ export async function getDashboardData(userId: string) {
     }),
   ]);
 
-  // Aggregate per-day totals
   type DayAgg = { eaten: number; burned: number; net: number; logged: boolean };
   const dayMap = new Map<string, DayAgg>();
-
-  // init last 30 days (so gaps are explicit and break streaks)
   for (let i = 0; i <= 30; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
@@ -215,12 +226,6 @@ export async function getDashboardData(userId: string) {
 
   for (const v of dayMap.values()) v.net = v.eaten - v.burned;
 
-  // Any data at all in the window?
-  const hasLoggedAnyDayLast30 = Array.from(dayMap.values()).some(
-    (d) => d.logged
-  );
-
-  // compute best streak (exclude today), only counting days that were logged AND under target
   let bestStreak = 0;
   let running = 0;
   for (let i = 30; i >= 1; i--) {
@@ -228,30 +233,22 @@ export async function getDashboardData(userId: string) {
     d.setDate(d.getDate() - i);
     const k = ymd(d);
     const day = dayMap.get(k)!;
-
     const ok = targetCalories > 0 && day.logged && day.net <= targetCalories;
-
     running = ok ? running + 1 : 0;
     bestStreak = Math.max(bestStreak, running);
   }
 
-  // current streak (consecutive ok days ending yesterday) + when it started
   let currentStreak = 0;
-  let currentStreakStart: string | null = null;
   for (let i = 1; i <= 30; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const k = ymd(d);
     const day = dayMap.get(k)!;
-
     const ok = targetCalories > 0 && day.logged && day.net <= targetCalories;
-
     if (!ok) break;
     currentStreak++;
-    currentStreakStart = k; // earliest day in the current run
   }
 
-  // quick motivational line
   let praise = "Let’s make today count!";
   if (currentStreak >= 7) praise = "🔥 On fire! A full week on target!";
   else if (currentStreak >= 3) praise = "👏 Great momentum—keep it rolling!";
@@ -274,9 +271,21 @@ export async function getDashboardData(userId: string) {
     hitCaloriesYesterday,
 
     currentStreak,
-    currentStreakStart,
     bestStreak,
-    hasLoggedAnyDayLast30,
     praise,
   };
+}
+
+export const getDashboardData = unstable_cache(
+  async (userId: string) => _getDashboardDataRaw(userId),
+  // cache key: global + userId
+  ["dashboard-data"],
+  {
+    revalidate: 30,
+    tags: ["dashboard-data"],
+  }
+);
+
+export async function getDashboardDataTagged(userId: string) {
+  return getDashboardData(userId);
 }

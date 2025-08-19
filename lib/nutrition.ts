@@ -1,4 +1,3 @@
-// lib/nutrition.ts
 export type ActivityLevel =
   | "sedentary"
   | "light"
@@ -10,7 +9,6 @@ export type ActivityLevel =
 
 export type Goal = "lose" | "maintain" | "gain";
 
-// Map many possible strings to our canonical Goal
 export function normalizeGoal(goal?: string | null): Goal {
   const g = (goal || "").toLowerCase();
   if (
